@@ -31,9 +31,9 @@ app.post('/webhook/order-created', (req, res) => {
 // 2. الـ Endpoint اللي هتعملها Call كل 10 دقائق
 app.get('/api/get-next-order', async (req, res) => {
     try {
-       if (orderQueue.length === 0) {
-            // حالة 2: مفيش أوردرات حالياً
-            return res.status(200).json({ status: 2, data: null });
+      if (orderQueue.length === 0) {
+            // حالة 2: مفيش أوردرات (يرجع رقم 2 فقط)
+            return res.status(200).json(2);
         }
 
         const nextOrder = orderQueue.shift(); // ناخد أقدم أوردر
@@ -44,14 +44,13 @@ app.get('/api/get-next-order', async (req, res) => {
         await axios.post(externalApiUrl, nextOrder);
 
         // حالة 1: Success (تم الإرسال بنجاح)
-return res.status(200).json({
-            status: 1,
-            data: nextOrder
+return res.status(200).json(
+             1, // الرقم اللي السيستم بيفهمه (int)
+    {order: nextOrder // بيانات الأوردر اللي هتتخزن في السيستم
         });
    } catch (error) {
-        console.error("Sync Error:", error.message);
-        // حالة 3: خطأ في السيرفر
-        return res.status(500).json({ status: 3, data: null });
+        // حالة 3: إيرور
+        return res.status(500).json(3);
     }
 });
 
