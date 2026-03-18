@@ -8,24 +8,51 @@ let orderQueue = [];
 
 // 1. استقبال الأوردر من شوبيفاي
 app.post('/webhook/order-created', (req, res) => {
-    try {
-        const body = req.body;
-        const newOrder = {
-            id: body.id,
-            order_number: body.name,
-            customer_name: `${body.customer?.first_name || ''} ${body.customer?.last_name || ''}`,
-            phone: body.shipping_address?.phone || body.customer?.phone || "",
-            total: body.total_price,
-            modelid: body.line_items?.[0]?.sku, // أول SKU كمثال
-            variant: body.line_items?.[0]?.variant_title,
-            payment_type: body.payment_gateway_names?.[0] === 'manual' ? 'Cash' : 'Online'
-        };
+    const body = req.body;
 
-        orderQueue.push(newOrder);
-        res.status(200).send('OK');
-    } catch (err) {
-        res.status(500).send('Error');
-    }
+    const newOrder = {
+        id: body.id,
+        order_number: body.name, // رقم الأوردر (مثلاً #1001)
+        total: body.total_price,
+        currency: body.currency, // العملة (EGP, USD...)
+        
+        // بيانات العميل
+        customer_name: `${body.customer?.first_name || ''} ${body.customer?.last_name || ''}`,
+        phone: body.shipping_address?.phone || body.customer?.phone || "لا يوجد رقم",email: body.email,
+
+        // العنوان بالتفصيل
+        address: {
+            city: body.shipping_address?.city,
+            address1: body.shipping_address?.address1,
+            address2: body.shipping_address?.address2,
+            province: body.shipping_address?.province, // المحافظة
+            country: body.shipping_address?.country,
+        },
+
+        // طريقة الدفع
+        // شوبيفاي يرسلها كقائمة، نأخذ أول طريقة مستخدمة
+        payment_method: body.payment_gateway_names?.length > 0 
+            ? body.payment_gateway_names[0] 
+            : "غير محدد",
+        
+        // هل تم الدفع أم كاش؟
+        financial_status: body.financial_status, // (paid = مدفوع فيزا، pending = غالباً كاش عند الاستلام)
+        shipping_price: body.shipping_lines?.[0]?.price || "0.00", // تكلفة الشحن
+        // المنتجات المطلوبة (قائمة بكل منتج وكميته)
+        items: body.line_items?.map(item => ({
+            title: item.title,
+            variant_title: item.variant_title, // (مثلاً: Red / XL)
+            quantity: item.quantity,
+            price: item.price,
+            modelid: item.sku
+        })),
+        customer_note: body.note || "",
+        received_at: new Date()
+    };
+
+    orderQueue.push(newOrder);
+    console.log(`✅ أوردر جديد تم استلامه من ${newOrder.customer_name}`);
+    return res.status(200).json({ status: 'success' });
 });
 
 // 2. الـ Endpoint اللي هتعملها Call كل 10 دقائق
