@@ -44,12 +44,13 @@ app.get('/api/get-next-order', async (req, res) => {
         await axios.post(externalApiUrl, nextOrder);
 
         // حالة 1: Success (تم الإرسال بنجاح)
-return res.status(200).json(
-             1, // الرقم اللي السيستم بيفهمه (int)
-    {order: nextOrder // بيانات الأوردر اللي هتتخزن في السيستم
+return res.status(200).json({
+            status: 1,
+            data: nextOrder
         });
    } catch (error) {
-        // حالة 3: إيرور
+        console.error("Sync Error:", error.message);
+        // حالة 3: خطأ في السيرفر
         return res.status(500).json(3);
     }
 });
